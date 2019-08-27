@@ -5,8 +5,9 @@
 //  Created by Josh Svatek on 2017-05-31.
 //  Copyright © 2017 Udacity. All rights reserved.
 //
-
+import CoreData
 import UIKit
+
 
 class NotebooksListViewController: UIViewController, UITableViewDataSource {
     /// A table view that displays a list of notebooks
@@ -14,11 +15,22 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource {
 
     /// The `Notebook` objects being presented
     var notebooks: [Notebook] = []
+    var dataController: DataController!
 
     override func viewDidLoad() {
         super.viewDidLoad()
         navigationItem.titleView = UIImageView(image: #imageLiteral(resourceName: "toolbar-cow"))
         navigationItem.rightBarButtonItem = editButtonItem
+        
+        let fetchRequest: NSFetchRequest<Notebook> = Notebook.fetchRequest()
+        let sortDescriptor = NSSortDescriptor(key: "creationDate", ascending: false)
+        fetchRequest.sortDescriptors = [sortDescriptor]
+        
+        if let results = try? dataController.viewContext.fetch(fetchRequest) {
+            notebooks = results
+            tableView.reloadData()
+        }
+        
         updateEditButtonState()
         
     }
@@ -75,14 +87,23 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource {
 
     /// Adds a new notebook to the end of the `notebooks` array
     func addNotebook(name: String) {
-//        let notebook = Notebook(name: name)
-//        notebooks.append(notebook)
-        tableView.insertRows(at: [IndexPath(row: numberOfNotebooks - 1, section: 0)], with: .fade)
+        let notebook = Notebook(context: dataController.viewContext)
+        notebook.name = name
+        notebook.creationDate = Date()
+        try? dataController.viewContext.save()
+        
+        notebooks.insert(notebook, at: 0)
+        tableView.insertRows(at: [IndexPath(row: 0, section: 0)], with: .fade)
         updateEditButtonState()
     }
 
     /// Deletes the notebook at the specified index path
     func deleteNotebook(at indexPath: IndexPath) {
+        let notebookToDelete = notebook(at: indexPath)
+        dataController.viewContext.delete(notebookToDelete)
+        
+        try? dataController.viewContext.save()
+        
         notebooks.remove(at: indexPath.row)
         tableView.deleteRows(at: [indexPath], with: .fade)
         if numberOfNotebooks == 0 {
@@ -149,6 +170,8 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource {
         if let vc = segue.destination as? NotesListViewController {
             if let indexPath = tableView.indexPathForSelectedRow {
                 vc.notebook = notebook(at: indexPath)
+                vc.dataController = dataController
+                
             }
         }
     }

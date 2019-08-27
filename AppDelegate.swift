@@ -21,6 +21,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         dataController.load()
         
+        let navigationController = window?.rootViewController as! UINavigationController
+        let noteBooksViewController = navigationController.topViewController as! NotebooksListViewController
+        
+        noteBooksViewController.dataController = dataController
+        
         return true
     }
 
