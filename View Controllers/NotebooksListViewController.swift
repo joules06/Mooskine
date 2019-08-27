@@ -9,23 +9,24 @@ import CoreData
 import UIKit
 
 
-class NotebooksListViewController: UIViewController, UITableViewDataSource, NSFetchedResultsControllerDelegate {
+class NotebooksListViewController: UIViewController, UITableViewDataSource {
     /// A table view that displays a list of notebooks
     @IBOutlet weak var tableView: UITableView!
 
     var dataController: DataController!
 
-    var fetechedResultController: NSFetchedResultsController<Notebook>!
+    var fetchedResultController: NSFetchedResultsController<Notebook>!
     
     fileprivate func setupFechtedResultController() {
         let fetchRequest: NSFetchRequest<Notebook> = Notebook.fetchRequest()
         let sortDescriptor = NSSortDescriptor(key: "creationDate", ascending: false)
         fetchRequest.sortDescriptors = [sortDescriptor]
         
-        fetechedResultController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
-        fetechedResultController.delegate = self
+        fetchedResultController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: "notebooks")
+        fetchedResultController.delegate = self
+        
         do {
-            try fetechedResultController.performFetch()
+            try fetchedResultController.performFetch()
         }catch {
             fatalError("The fetch result could not be performed: \(error.localizedDescription)")
         }
@@ -51,7 +52,7 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource, NSFe
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         
-        fetechedResultController = nil
+        fetchedResultController = nil
     }
 
     // -------------------------------------------------------------------------
@@ -107,7 +108,7 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource, NSFe
     
     /// Deletes the notebook at the specified index path
     func deleteNotebook(at indexPath: IndexPath) {
-        let notebookToDelete = fetechedResultController.object(at: indexPath)
+        let notebookToDelete = fetchedResultController.object(at: indexPath)
         dataController.viewContext.delete(notebookToDelete)
         
         try? dataController.viewContext.save()
@@ -116,7 +117,7 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource, NSFe
     }
 
     func updateEditButtonState() {
-        if let sections = fetechedResultController.sections {
+        if let sections = fetchedResultController.sections {
             navigationItem.rightBarButtonItem?.isEnabled = sections[0].numberOfObjects > 0
         }
         
@@ -131,15 +132,15 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource, NSFe
     // MARK: - Table view data source
 
     func numberOfSections(in tableView: UITableView) -> Int {
-        return fetechedResultController.sections?.count ?? 1
+        return fetchedResultController.sections?.count ?? 1
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return fetechedResultController.sections?[section].numberOfObjects ?? 0
+        return fetchedResultController.sections?[section].numberOfObjects ?? 0
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let aNotebook = fetechedResultController.object(at: indexPath)
+        let aNotebook = fetchedResultController.object(at: indexPath)
         let cell = tableView.dequeueReusableCell(withIdentifier: NotebookCell.defaultReuseIdentifier, for: indexPath) as! NotebookCell
 
         // Configure cell
@@ -167,7 +168,7 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource, NSFe
         // If this is a NotesListViewController, we'll configure its `Notebook`
         if let vc = segue.destination as? NotesListViewController {
             if let indexPath = tableView.indexPathForSelectedRow {
-                vc.notebook = fetechedResultController.object(at: indexPath)
+                vc.notebook = fetchedResultController.object(at: indexPath)
                 vc.dataController = dataController
                 
             }
@@ -175,7 +176,7 @@ class NotebooksListViewController: UIViewController, UITableViewDataSource, NSFe
     }
 }
 
-extension NotesListViewController: NSFetchedResultsControllerDelegate {
+extension NotebooksListViewController: NSFetchedResultsControllerDelegate {
     func controllerWillChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
         tableView.beginUpdates()
     }
@@ -191,7 +192,9 @@ extension NotesListViewController: NSFetchedResultsControllerDelegate {
         case .delete:
             tableView.deleteRows(at: [indexPath!], with: .fade)
         case .update:
-            break
+            tableView.reloadRows(at: [indexPath!], with: .fade)
+        case .move:
+            tableView.moveRow(at: indexPath!, to: newIndexPath!)
         default:
             break
         }
